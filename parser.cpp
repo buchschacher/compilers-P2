@@ -1,235 +1,255 @@
 #include <cstdlib>
 #include <cstdio>
+#include <vector>
+#include <cstring>
 #include "token.h"
 #include "scanner.h"
+#include "node.h"
 
-void program();
-void block();
-void vars();
-void expr();
-void a();
-void m();
-void r();
-void stats();
-void mstat();
-void stat();
-void in();
-void out();
-void iff();
-void loop();
-void assign();
-void ro();
+node_t* program();
+node_t* block();
+node_t* vars();
+node_t* expr();
+node_t* a();
+node_t* m();
+node_t* r();
+node_t* stats();
+node_t* mstat();
+node_t* stat();
+node_t* in();
+node_t* out();
+node_t* iff();
+node_t* loop();
+node_t* assign();
+node_t* ro();
 void error();
-
 token_t token;
 
-void parser()
+node_t* parser()
 {
+	node_t *root = NULL;
 	token = scanner();
-	program();
+	root = program();
 	if (token.type == EOFtk)
 	{
 		printf("Parse was OK\n");
-		return;
+		return root;
 	}
 	else
-		error();
+		exit(1);
 }
 
 /* <program> -> void <vars> <block> */
-void program()
+node_t* program()
 {
+	node_t *p = new node_t;
+	strcpy(p->label, "program");
 	if (token.type == VOIDtk)
 	{
 		token = scanner();
-		vars();
-		block();
-		return;
+		p->child[0] = vars();
+		p->child[1] = block();
+		return p;
 	}
 	error();
 }
 
 /* <block> -> begin <vars> <stats> end */
-void block()
+node_t* block()
 {
+	node_t *p = new node_t;
+        strcpy(p->label, "block");
 	if (token.type == BGNtk)
 	{
 		token = scanner();
-		vars();
-		stats();
+		p->child[0] = vars();
+		p->child[1] = stats();
 		if (token.type == ENDtk)
 		{
 			token = scanner();
-			return;
+			return p;
 		}
 	}
 	error();
 }
 
 /* <vars> -> empty | let id = int <vars> */
-void vars()
+node_t* vars()
 {
+	node_t *p = new node_t;
+        strcpy(p->label, "vars");
 	if (token.type == LETtk)
 	{
 		token = scanner();
 		if (token.type == IDtk)
 		{
+			p->token[0] = token;
 			token = scanner();
 			if (token.type == EQUtk)
 			{
 				token = scanner();
 				if (token.type == INTtk)
 				{
+					p->token[1] = token;
 					token = scanner();
-					vars();
-					return;
+					p->child[0] = vars();
+					return p;
 				}
 			}
 		}
 		error();
 	}
-	return;
+	return p;
 }
 
 /* <expr> -> <a> / <expr> | <a> * <expr> | <a> */
-void expr()
+node_t* expr()
 {
-	a();						
-	if (token.type == DIVtk)
+	node_t *p = new node_t;
+        strcpy(p->label, "expr");
+	p->child[0] = a();						
+	if ((token.type == DIVtk) || (token.type == MULTtk))
 	{
+		p->token[0] = token;
 		token = scanner();
 		expr();
-		return;
+		return p;
 	}
-	else if (token.type == MULTtk)
-	{
-		token = scanner();
-		expr();
-		return;
-	}
-	return;
+	return p;
 }
 
 /* <a> -> <m> + <a> | <m> - <a> | <m> */
-void a()
+node_t* a()
 {
-	m();
-	if (token.type == PLUStk)	// <a> -> <m> + <a>
+	node_t *p = new node_t;	
+        strcpy(p->label, "A");
+	p->child[0] = m();
+	if ((token.type == PLUStk) || (token.type == MINtk))
 	{
+		p->token[0] = token;
 		token = scanner();
-		a();
-		return;
+		p->child[1] = a();
+		return p;
 	}
-	if (token.type == PLUStk)	// <a> -> <m> - <a>
-	{
-		token = scanner();
-		a();
-		return;
-	}
-	return;						// <a> -> <m>
+	return p;
 }
 
 /* <m> -> - <m> | <r> */
-void m()
+node_t* m()
 {
+	node_t *p = new node_t;
+        strcpy(p->label, "M");
 	if (token.type == MINtk)	// <m> -> - <m>
 	{
+		p->token[0] = token;
 		token = scanner();
-		m();
-		return;
+		p->child[0] = m();
+		return p;
 	}
-	else						// <m> -> <r> 
+	else				// <m> -> <r> 
 	{
-		r();
-		return;
+		p->child[0] = r();
+		return p;
 	}
 }
 
 /* <r> -> ( <expr> ) | id | int */
-void r()
+node_t* r()
 {
+	node_t *p = new node_t;
+        strcpy(p->label, "R");
 	if (token.type == LPtk)
 	{
 		token = scanner();
-		expr();
+		p->child[0] = expr();
 		if (token.type == RPtk)
 		{
 			token = scanner();
-			return;
+			return p;
 		}
 		error();
 	}
 	if (token.type == IDtk)
 	{
+		p->token[0] = token;
 		token = scanner();
-		return;
+		return p;
 	}
 	if (token.type == INTtk)
 	{
+		p->token[0] = token;
 		token = scanner();
-		return;
+		return p;
 	}
 	error();
 }
 
 /* <stats> -> <stat> <mstat> */
-void stats()
+node_t* stats()
 {
-	stat();
-	mstat();
-	return;
+	node_t *p = new node_t;
+        strcpy(p->label, "stats");
+	p->child[0] = stat();
+	p->child[1] = mstat();
+	return p;
 }
 
 /* <mstat> -> empty | <stat> <mstat> */
-void mstat()
+node_t* mstat()
 {
+	node_t *p = new node_t;
+        strcpy(p->label, "mStat");
 	if ((token.type == READtk) || (token.type == BGNtk) || (token.type == ITERtk) || (token.type == PRNTtk) || (token.type == IDtk) || (token.type == CONDtk))
 	{
-		stat();
-		mstat();
+		p->child[0] = stat();
+		p->child[1] = mstat();
 	}
-	return;
+	return p;
 }
 
 /* <stat> -> <in> | <out> | <block> | <if> | <loop> | <assign> */
-void stat()
+node_t* stat()
 {
+	node_t *p = new node_t;
+        strcpy(p->label, "stat");
 	if (token.type == READtk)
 	{
-		in();
-		return;
+		p->child[0] = in();
+		return p;
 	}
 	if (token.type == PRNTtk)
 	{
-		out();
-		return;
+		p->child[0] = out();
+		return p;
 	}
 	if (token.type == BGNtk)
 	{
-		block();
-		return;
+		p->child[0] = block();
+		return p;
 	}
 	if (token.type == CONDtk)
 	{
-		iff();
-		return;
+		p->child[0] = iff();
+		return p;
 	}
 	if (token.type == ITERtk)
 	{
-		loop();
-		return;
+		p->child[0] = loop();
+		return p;
 	}
 	if (token.type == IDtk)
 	{
-		assign();
-		return;
+		p->child[0] = assign();
+		return p;
 	}
 	error();
 }
 
 /* <in> -> read ( id ) : */
-void in()
+node_t* in()
 {
+	node_t *p = new node_t;
+        strcpy(p->label, "in");
 	if (token.type == READtk)
 	{
 		token = scanner();
@@ -238,6 +258,7 @@ void in()
 			token = scanner();
 			if (token.type == IDtk)
 			{
+				p->token[0] = token;
 				token = scanner();
 				if (token.type == RPtk)
 				{
@@ -245,7 +266,7 @@ void in()
 					if (token.type == COLtk)
 					{
 						token = scanner();
-						return;
+						return p;
 					}
 				}
 			}
@@ -255,22 +276,24 @@ void in()
 }
 
 /* <out> -> print ( <expr> ) : */
-void out()
+node_t* out()
 {
+	node_t *p = new node_t;
+        strcpy(p->label, "out");
 	if (token.type == PRNTtk)
 	{
 		token = scanner();
 		if (token.type == LPtk)
 		{
 			token = scanner();
-			expr();
+			p->child[0] = expr();
 			if (token.type == RPtk)
 			{
 				token = scanner();
 				if (token.type == COLtk)
 				{
 					token = scanner();
-					return;
+					return p;
 				}
 			}
 		}
@@ -278,97 +301,112 @@ void out()
 }
 
 /* <if> -> cond ( <expr> <ro> <expr> ) <stat> */
-void iff()
+node_t* iff()
 {
+	node_t *p = new node_t;
+        strcpy(p->label, "if");
 	if (token.type == CONDtk)
 	{
 		token = scanner();
 		if (token.type == LPtk)
 		{
 			token = scanner();
-			expr();
-			ro();
-			expr();
+			p->child[0] = expr();
+			p->child[1] = ro();
+			p->child[2] = expr();
 			if (token.type == RPtk)
 			{
 				token = scanner();
-				stat();
-				return;
+				p->child[3] = stat();
+				return p;
 			}
 		}
 	}
 }
 
 /* <loop> -> iter ( <expr> <ro> <expr> ) <stat> */
-void loop()
+node_t* loop()
 {
+	node_t *p = new node_t;
+        strcpy(p->label, "loop");
 	if (token.type == ITERtk)
 	{
 		token = scanner();
 		if (token.type == LPtk)
 		{
 			token = scanner();
-			expr();
-			ro();
-			expr();
+			p->child[0] = expr();
+			p->child[1] = ro();
+			p->child[2] = expr();
 			if (token.type == RPtk)
 			{
 				token = scanner();
-				stat();
-				return;
+				p->child[3] = stat();
+				return p;
 			}
 		}
 	}
 }
 
 /* <assign> -> id = <expr> : */
-void assign()
+node_t* assign()
 {
+	node_t *p = new node_t;
+        strcpy(p->label, "assign");
 	if (token.type == IDtk)
 	{
+		p->token[0] = token;
 		token = scanner();
 		if (token.type == EQUtk)
 		{
 			token = scanner();
-			expr();
+			p->child[0] = expr();
 			if (token.type == COLtk)
 			{
 				token = scanner();
-				return;
+				return p;
 			}
 		}
 	}
 }
 
 /* <ro> -> < | < = | > | > = | = = | = */
-void ro()
+node_t* ro()
 {
+	node_t *p = new node_t;
+        strcpy(p->label, "RO");
 	if (token.type == LSTtk)
 	{
+		p->token[0] = token;
 		token = scanner();
 		if (token.type == EQUtk)
 		{
+			p->token[1] = token;
 			token = scanner();
 		}
-		return;
+		return p;
 	}
 	if (token.type == GRTtk)
 	{
+		p->token[0] = token;
 		token = scanner();
 		if (token.type == EQUtk)
 		{
+			p->token[1] = token;
 			token = scanner();
 		}
-		return;
+		return p;
 	}
 	if (token.type == EQUtk)
 	{
+		p->token[0] = token;
 		token = scanner();
 		if (token.type == EQUtk)
 		{
+			p->token[1] = token;
 			token = scanner();
 		}
-		return;
+		return p;
 	}
 }
 

@@ -3,20 +3,24 @@
 #include <iostream>
 #include <string>
 #include <cstring>
-
+#include <vector>
 #include "token.h"
+#include "node.h"
 #include "parser.h"
+#include "testTree.h"
 
 FILE *fp = NULL;
 
 int main(int argc, char *argv[])
 {
+	node_t *root = NULL;
+
 	// Choose source based on number arguments
 	if (argc == 1)
 	{
 		// Call test scanner with standard input
 		fp = stdin;
-		parser();
+		root = parser();
 	}
 	else if (argc == 2)
 	{
@@ -34,7 +38,7 @@ int main(int argc, char *argv[])
 			printf("Error: Could not open file \"%s\"\n", fileName);
 			return 1;
 		}
-		parser();
+		root = parser();
 		fclose(fp);
 	}
 	else
@@ -43,6 +47,8 @@ int main(int argc, char *argv[])
 		printf("Error: invalid number of arguments\n");
 		return 1;
 	}
+
+	testTree(root, 0);
 
 	return 0;
 }
