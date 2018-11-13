@@ -3,28 +3,30 @@
 #include "token.h"
 #include "node.h"
 
-void testTree(node_t* node, int depth)
+void treePrint(node_t* node, int depth)
 {
+	// Indent node based on level
 	for (int i = 0; i < depth; i++)
 	{
 		printf("  ");
 	}
 
-	printf("%s", node->label);
-
+	// Print node label and tokens
+	printf("%s:", node->label);
 	for (int i = 0; i < 2; i++)
 	{
 		if (node->token[i].type != 0)
-			printf(" %s:%s", tokenNames[node->token[i].type], node->token[i].inst);
+			printf(" %s", node->token[i].inst);	
 		else
 			break;
 	}
 	printf("\n");
 
+	// Traverse child nodes
 	for (int i = 0; i < 4; i++)
 	{
 		if (node->child[i] != NULL)
-			testTree(node->child[i], depth + 1);
+			treePrint(node->child[i], depth + 1);
 		else
 			break;
 	}

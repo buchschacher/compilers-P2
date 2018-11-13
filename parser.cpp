@@ -1,10 +1,10 @@
 #include <cstdlib>
 #include <cstdio>
-#include <vector>
 #include <cstring>
+
 #include "token.h"
-#include "scanner.h"
 #include "node.h"
+#include "scanner.h"
 
 node_t* program();
 node_t* block();
@@ -30,26 +30,29 @@ node_t* parser()
 	node_t *root = NULL;
 	token = scanner();
 	root = program();
+
+	// check for end of file token
 	if (token.type == EOFtk)
 	{
 		printf("Parse was OK\n");
 		return root;
-	}
-	else
-		exit(1);
+	}	
+	exit(1);
 }
 
 /* <program> -> void <vars> <block> */
 node_t* program()
 {
-	node_t *p = new node_t;
-	strcpy(p->label, "program");
+	node_t *node = new node_t;
+	strcpy(node->label, "program");
+
+	// check for matching void
 	if (token.type == VOIDtk)
 	{
 		token = scanner();
-		p->child[0] = vars();
-		p->child[1] = block();
-		return p;
+		node->child[0] = vars();
+		node->child[1] = block();
+		return node;
 	}
 	error();
 }
@@ -57,17 +60,21 @@ node_t* program()
 /* <block> -> begin <vars> <stats> end */
 node_t* block()
 {
-	node_t *p = new node_t;
-        strcpy(p->label, "block");
+	node_t *node = new node_t;
+        strcpy(node->label, "block");
+
+	// check for matching begin
 	if (token.type == BGNtk)
 	{
 		token = scanner();
-		p->child[0] = vars();
-		p->child[1] = stats();
+		node->child[0] = vars();
+		node->child[1] = stats();
+		
+		// check for matching end
 		if (token.type == ENDtk)
 		{
 			token = scanner();
-			return p;
+			return node;
 		}
 	}
 	error();
@@ -76,197 +83,264 @@ node_t* block()
 /* <vars> -> empty | let id = int <vars> */
 node_t* vars()
 {
-	node_t *p = new node_t;
-        strcpy(p->label, "vars");
+	node_t *node = new node_t;
+	strcpy(node->label, "vars");
+
+	// predict  <vars> -> let id = int <vars> production
 	if (token.type == LETtk)
 	{
+		//node_t *node = new node_t;
+		//strcpy(node->label, "vars");
 		token = scanner();
+
+		// check for matching id
 		if (token.type == IDtk)
 		{
-			p->token[0] = token;
+			node->token[0] = token;
 			token = scanner();
+
+			// check for matching =
 			if (token.type == EQUtk)
 			{
 				token = scanner();
+
+				// check for matching int
 				if (token.type == INTtk)
 				{
-					p->token[1] = token;
+					node->token[1] = token;
 					token = scanner();
-					p->child[0] = vars();
-					return p;
+					node->child[0] = vars();
+					return node;
 				}
 			}
 		}
 		error();
 	}
-	return p;
+
+	// empty production
+	return node;
 }
 
-/* <expr> -> <a> / <expr> | <a> * <expr> | <a> */
+/* <expr> -> <A> / <expr> | <A> * <expr> | <A> */
 node_t* expr()
 {
-	node_t *p = new node_t;
-        strcpy(p->label, "expr");
-	p->child[0] = a();						
+	node_t *node = new node_t;
+        strcpy(node->label, "expr");
+	node->child[0] = a();
+
+	// predict <expr> -> <A> / <expr> or <expr> -> <A> * <expr> production
 	if ((token.type == DIVtk) || (token.type == MULTtk))
 	{
-		p->token[0] = token;
+		node->token[0] = token;
 		token = scanner();
-		expr();
-		return p;
+		node->child[1] = expr();
+		return node;
 	}
-	return p;
+
+	// <expr> -> <A> production
+	return node;
 }
 
-/* <a> -> <m> + <a> | <m> - <a> | <m> */
+/* <A> -> <M> + <A> | <M> - <A> | <M> */
 node_t* a()
 {
-	node_t *p = new node_t;	
-        strcpy(p->label, "A");
-	p->child[0] = m();
+	node_t *node = new node_t;	
+        strcpy(node->label, "A");
+	node->child[0] = m();
+
+	// predict <A> -> <M> + <A> or <A> -> <M> - <A>
 	if ((token.type == PLUStk) || (token.type == MINtk))
 	{
-		p->token[0] = token;
+		node->token[0] = token;
 		token = scanner();
-		p->child[1] = a();
-		return p;
+		node->child[1] = a();
+		return node;
 	}
-	return p;
+
+	// <A> -> <M> production
+	return node;
 }
 
-/* <m> -> - <m> | <r> */
+/* <M> -> - <M> | <R> */
 node_t* m()
 {
-	node_t *p = new node_t;
-        strcpy(p->label, "M");
-	if (token.type == MINtk)	// <m> -> - <m>
+	node_t *node = new node_t;
+        strcpy(node->label, "M");
+
+	// predict <M> -> - <M>
+	if (token.type == MINtk)
 	{
-		p->token[0] = token;
+		node->token[0] = token;
 		token = scanner();
-		p->child[0] = m();
-		return p;
+		node->child[0] = m();
+		return node;
 	}
-	else				// <m> -> <r> 
+
+	// predict <M> -> <R>
+	else 
 	{
-		p->child[0] = r();
-		return p;
+		node->child[0] = r();
+		return node;
 	}
 }
 
-/* <r> -> ( <expr> ) | id | int */
+/* <R> -> ( <expr> ) | id | int */
 node_t* r()
 {
-	node_t *p = new node_t;
-        strcpy(p->label, "R");
+	node_t *node = new node_t;
+        strcpy(node->label, "R");
+
+	// predict <R> -> ( <expr> ) production
 	if (token.type == LPtk)
 	{
 		token = scanner();
-		p->child[0] = expr();
+		node->child[0] = expr();
+
+		// check for matching )
 		if (token.type == RPtk)
 		{
 			token = scanner();
-			return p;
+			return node;
 		}
 		error();
 	}
+
+	// predict <R> -> id production
 	if (token.type == IDtk)
 	{
-		p->token[0] = token;
+		node->token[0] = token;
 		token = scanner();
-		return p;
+		return node;
 	}
+
+	// predict <R> -> int production
 	if (token.type == INTtk)
 	{
-		p->token[0] = token;
+		node->token[0] = token;
 		token = scanner();
-		return p;
+		return node;
 	}
+
 	error();
 }
 
-/* <stats> -> <stat> <mstat> */
+/* <stats> -> <stat> <mStat> */
 node_t* stats()
 {
-	node_t *p = new node_t;
-        strcpy(p->label, "stats");
-	p->child[0] = stat();
-	p->child[1] = mstat();
-	return p;
+	node_t *node = new node_t;
+        strcpy(node->label, "stats");
+	node->child[0] = stat();		// process <stats>
+	node->child[1] = mstat();		// process <mStat>
+	return node;
 }
 
-/* <mstat> -> empty | <stat> <mstat> */
+/* <mStat> -> empty | <stat> <mStat> */
 node_t* mstat()
 {
-	node_t *p = new node_t;
-        strcpy(p->label, "mStat");
+	node_t *node = new node_t;
+	strcpy(node->label, "mStat");
+
+
+	// predict <mStat> -> <stat> <mStat> production
 	if ((token.type == READtk) || (token.type == BGNtk) || (token.type == ITERtk) || (token.type == PRNTtk) || (token.type == IDtk) || (token.type == CONDtk))
-	{
-		p->child[0] = stat();
-		p->child[1] = mstat();
+	{	
+		node->child[0] = stat();	// process <stat>
+		node->child[1] = mstat();	// process <mStat>
+		return node;
 	}
-	return p;
+
+	// empty production
+	return node;
 }
 
 /* <stat> -> <in> | <out> | <block> | <if> | <loop> | <assign> */
 node_t* stat()
 {
-	node_t *p = new node_t;
-        strcpy(p->label, "stat");
+	node_t *node = new node_t;
+        strcpy(node->label, "stat");
+
+	// <stat> -> <in> production
 	if (token.type == READtk)
 	{
-		p->child[0] = in();
-		return p;
+		// process <in>
+		node->child[0] = in();
+		return node;
 	}
+
+	// <stat> -> <out> production
 	if (token.type == PRNTtk)
 	{
-		p->child[0] = out();
-		return p;
+		// process <out>
+		node->child[0] = out();
+		return node;
 	}
+
+	// <stat> -> <block> production
 	if (token.type == BGNtk)
 	{
-		p->child[0] = block();
-		return p;
+		// process <block>
+		node->child[0] = block();
+		return node;
 	}
+
+	// <stat> -> <if> production
 	if (token.type == CONDtk)
 	{
-		p->child[0] = iff();
-		return p;
+		// process <if>
+		node->child[0] = iff();
+		return node;
 	}
+
+	// <stat> -> <loop> production
 	if (token.type == ITERtk)
 	{
-		p->child[0] = loop();
-		return p;
+		// process <loop>
+		node->child[0] = loop();
+		return node;
 	}
+
+	// <stat> -> <assign> production
 	if (token.type == IDtk)
 	{
-		p->child[0] = assign();
-		return p;
+		node->child[0] = assign();
+		return node;
 	}
+
 	error();
 }
 
 /* <in> -> read ( id ) : */
 node_t* in()
 {
-	node_t *p = new node_t;
-        strcpy(p->label, "in");
+	node_t *node = new node_t;
+        strcpy(node->label, "in");
+
+	// check for matching read
 	if (token.type == READtk)
 	{
 		token = scanner();
+
+		// check for matching (
 		if (token.type == LPtk)
 		{
 			token = scanner();
+
+			// check for matching id
 			if (token.type == IDtk)
 			{
-				p->token[0] = token;
+				node->token[0] = token;
 				token = scanner();
+
+				// check for matching )
 				if (token.type == RPtk)
 				{
 					token = scanner();
+
+					// check for matching :
 					if (token.type == COLtk)
 					{
 						token = scanner();
-						return p;
+						return node;
 					}
 				}
 			}
@@ -278,136 +352,166 @@ node_t* in()
 /* <out> -> print ( <expr> ) : */
 node_t* out()
 {
-	node_t *p = new node_t;
-        strcpy(p->label, "out");
+	node_t *node = new node_t;
+        strcpy(node->label, "out");
 	if (token.type == PRNTtk)
 	{
 		token = scanner();
 		if (token.type == LPtk)
 		{
 			token = scanner();
-			p->child[0] = expr();
+			node->child[0] = expr();
 			if (token.type == RPtk)
 			{
 				token = scanner();
 				if (token.type == COLtk)
 				{
 					token = scanner();
-					return p;
+					return node;
 				}
 			}
 		}
 	}
+	error();
 }
 
-/* <if> -> cond ( <expr> <ro> <expr> ) <stat> */
+/* <if> -> cond ( <expr> <RO> <expr> ) <stat> */
 node_t* iff()
 {
-	node_t *p = new node_t;
-        strcpy(p->label, "if");
+	node_t *node = new node_t;
+        strcpy(node->label, "if");
+
+	// check for matching cond
 	if (token.type == CONDtk)
 	{
 		token = scanner();
+
+		// check for matching (
 		if (token.type == LPtk)
 		{
 			token = scanner();
-			p->child[0] = expr();
-			p->child[1] = ro();
-			p->child[2] = expr();
+			node->child[0] = expr();
+			node->child[1] = ro();
+			node->child[2] = expr();
+
+			// check for matching )
 			if (token.type == RPtk)
 			{
 				token = scanner();
-				p->child[3] = stat();
-				return p;
+				node->child[3] = stat();
+				return node;
 			}
 		}
 	}
+	error();
 }
 
-/* <loop> -> iter ( <expr> <ro> <expr> ) <stat> */
+/* <loop> -> iter ( <expr> <RO> <expr> ) <stat> */
 node_t* loop()
 {
-	node_t *p = new node_t;
-        strcpy(p->label, "loop");
+	node_t *node = new node_t;
+        strcpy(node->label, "loop");
+
+	// check for matching inter
 	if (token.type == ITERtk)
 	{
 		token = scanner();
+
+		// check for matching (
 		if (token.type == LPtk)
 		{
 			token = scanner();
-			p->child[0] = expr();
-			p->child[1] = ro();
-			p->child[2] = expr();
+			node->child[0] = expr();
+			node->child[1] = ro();
+			node->child[2] = expr();
+
+			// check for matching )
 			if (token.type == RPtk)
 			{
 				token = scanner();
-				p->child[3] = stat();
-				return p;
+				node->child[3] = stat();
+				return node;
 			}
 		}
 	}
+	error();
 }
 
 /* <assign> -> id = <expr> : */
 node_t* assign()
 {
-	node_t *p = new node_t;
-        strcpy(p->label, "assign");
+	node_t *node = new node_t;
+        strcpy(node->label, "assign");
+
+	// check for matching id
 	if (token.type == IDtk)
 	{
-		p->token[0] = token;
+		node->token[0] = token;
 		token = scanner();
+
+		// check for matching =
 		if (token.type == EQUtk)
 		{
 			token = scanner();
-			p->child[0] = expr();
+			node->child[0] = expr();
+
+			// check for matching :
 			if (token.type == COLtk)
 			{
 				token = scanner();
-				return p;
+				return node;
 			}
 		}
 	}
+	error();
 }
 
-/* <ro> -> < | < = | > | > = | = = | = */
+/* <RO> -> < | < = | > | > = | = = | = */
 node_t* ro()
 {
-	node_t *p = new node_t;
-        strcpy(p->label, "RO");
+	node_t *node = new node_t;
+        strcpy(node->label, "RO");
+
+	// predic <RO> -> < or <RO> -> < = productions
 	if (token.type == LSTtk)
 	{
-		p->token[0] = token;
+		node->token[0] = token;
 		token = scanner();
 		if (token.type == EQUtk)
 		{
-			p->token[1] = token;
+			node->token[1] = token;
 			token = scanner();
 		}
-		return p;
+		return node;
 	}
+
+	// predic <RO> -> > or <RO> -> > = productions
 	if (token.type == GRTtk)
 	{
-		p->token[0] = token;
+		node->token[0] = token;
 		token = scanner();
 		if (token.type == EQUtk)
 		{
-			p->token[1] = token;
+			node->token[1] = token;
 			token = scanner();
 		}
-		return p;
+		return node;
 	}
+
+	// predic <RO> -> = or <RO> -> = = productions
 	if (token.type == EQUtk)
 	{
-		p->token[0] = token;
+		node->token[0] = token;
 		token = scanner();
 		if (token.type == EQUtk)
 		{
-			p->token[1] = token;
+			node->token[1] = token;
 			token = scanner();
 		}
-		return p;
+		return node;
 	}
+
+	error();
 }
 
 void error()

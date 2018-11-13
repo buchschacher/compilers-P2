@@ -1,9 +1,9 @@
 #include <cstdlib>
 #include <cstdio>
+#include <cstring>
 #include <iostream>
 #include <string>
-#include <cstring>
-#include <vector>
+
 #include "token.h"
 #include "node.h"
 #include "parser.h"
@@ -11,17 +11,13 @@
 
 FILE *fp = NULL;
 
-int main(int argc, char *argv[])
+int main(const int argc, char *argv[])
 {
 	node_t *root = NULL;
 
-	// Choose source based on number arguments
+	// Choose file pointer based on number of arguments
 	if (argc == 1)
-	{
-		// Call test scanner with standard input
 		fp = stdin;
-		root = parser();
-	}
 	else if (argc == 2)
 	{
 		// Build filename from arguments
@@ -35,20 +31,27 @@ int main(int argc, char *argv[])
 		if (fp == NULL)
 		{
 			// Error if file cannot be opened
-			printf("Error: Could not open file \"%s\"\n", fileName);
+			printf("Main error: Could not open file \"%s\"\n", fileName);
 			return 1;
 		}
-		root = parser();
-		fclose(fp);
 	}
 	else
 	{
 		// Error message for more than two arguments
-		printf("Error: invalid number of arguments\n");
+		printf("Main error: invalid number of arguments\n");
 		return 1;
 	}
 
-	testTree(root, 0);
+	// Create tree from input
+	root = parser();
+
+	// Ouput preorder tree
+	treePrint(root, 0);
+
+	// close file
+	if (argc == 2)
+		fclose(fp);
+	
 
 	return 0;
 }
