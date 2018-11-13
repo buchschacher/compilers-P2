@@ -83,14 +83,14 @@ node_t* block()
 /* <vars> -> empty | let id = int <vars> */
 node_t* vars()
 {
-	node_t *node = new node_t;
-	strcpy(node->label, "vars");
+	//node_t *node = new node_t;
+	//strcpy(node->label, "vars");
 
 	// predict  <vars> -> let id = int <vars> production
 	if (token.type == LETtk)
 	{
-		//node_t *node = new node_t;
-		//strcpy(node->label, "vars");
+		node_t *node = new node_t;
+		strcpy(node->label, "vars");
 		token = scanner();
 
 		// check for matching id
@@ -118,7 +118,7 @@ node_t* vars()
 	}
 
 	// empty production
-	return node;
+	return NULL;
 }
 
 /* <expr> -> <A> / <expr> | <A> * <expr> | <A> */
@@ -237,20 +237,24 @@ node_t* stats()
 /* <mStat> -> empty | <stat> <mStat> */
 node_t* mstat()
 {
-	node_t *node = new node_t;
-	strcpy(node->label, "mStat");
+	//node_t *node = new node_t;
+	//strcpy(node->label, "mStat");
 
 
 	// predict <mStat> -> <stat> <mStat> production
 	if ((token.type == READtk) || (token.type == BGNtk) || (token.type == ITERtk) || (token.type == PRNTtk) || (token.type == IDtk) || (token.type == CONDtk))
-	{	
+	{
+
+		node_t *node = new node_t;
+		strcpy(node->label, "mStat");
+
 		node->child[0] = stat();	// process <stat>
 		node->child[1] = mstat();	// process <mStat>
 		return node;
 	}
 
 	// empty production
-	return node;
+	return NULL;
 }
 
 /* <stat> -> <in> | <out> | <block> | <if> | <loop> | <assign> */
@@ -354,16 +358,24 @@ node_t* out()
 {
 	node_t *node = new node_t;
         strcpy(node->label, "out");
+
+	// check for matching print
 	if (token.type == PRNTtk)
 	{
 		token = scanner();
+
+		// check for matching (
 		if (token.type == LPtk)
 		{
 			token = scanner();
 			node->child[0] = expr();
+
+			// check for matching )
 			if (token.type == RPtk)
 			{
 				token = scanner();
+
+				// check for matching :
 				if (token.type == COLtk)
 				{
 					token = scanner();

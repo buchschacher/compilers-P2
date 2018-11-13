@@ -17,8 +17,8 @@ void treePrint(node_t* node, int depth)
 	{
 		if (node->token[i].type != 0)
 			printf(" %s", node->token[i].inst);	
-		else
-			break;
+		//else
+		//	break;
 	}
 	printf("\n");
 
@@ -27,8 +27,8 @@ void treePrint(node_t* node, int depth)
 	{
 		if (node->child[i] != NULL)
 			treePrint(node->child[i], depth + 1);
-		else
-			break;
+		//else
+		//	break;
 	}
 
 	return;
